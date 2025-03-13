@@ -1,0 +1,12 @@
+{
+    "resnet": {
+      "model_name": "Resnet50",
+      "learning_rate": 0.001,
+      "epochs": 10
+    },
+    "efficientnet": {
+      "model_name": "EfficientNet-B3",
+      "learning_rate": 0.001,
+      "epochs": 10
+    }
+  }
