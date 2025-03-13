@@ -1,9 +1,15 @@
-torch
+# Core Requirements (CPU-only)
+torchvision
 torchvision
 timm
+
+# Data Handling
 datasets
 pandas
 huggingface-hub
+
+# Utilities
 scikit-learn
 matplotlib
 tqdm
+ipython

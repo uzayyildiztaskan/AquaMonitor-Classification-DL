@@ -1,9 +1,8 @@
-# src/data/data_handler.py
+import os
 import pandas as pd
 from torchvision import transforms
 from datasets import load_dataset
 from huggingface_hub import hf_hub_download
-import os
 import torch
 
 class DataHandler:
@@ -12,13 +11,11 @@ class DataHandler:
         self.dataset_root = dataset_root
         self.class_map = None
         self.label_dict = None
-        
-        # Create dataset directory if not exists
         os.makedirs(self.dataset_root, exist_ok=True)
         self._load_metadata()
-        
+
     def _load_metadata(self):
-        # Download and load metadata to dataset folder
+        # Download metadata file
         parquet_path = os.path.join(self.dataset_root, "aquamonitor-jyu.parquet.gzip")
         
         if not os.path.exists(parquet_path):
@@ -36,7 +33,7 @@ class DataHandler:
         classes = sorted(metadata["taxon_group"].unique())
         self.class_map = {k: v for v, k in enumerate(classes)}
         self.label_dict = dict(zip(metadata["img"], metadata["taxon_group"].map(self.class_map)))
-    
+
     @staticmethod
     def get_transforms():
         return transforms.Compose([
@@ -44,9 +41,10 @@ class DataHandler:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-    
+
     def get_datasets(self):
-        # Configure dataset cache location
+
+         # Configure dataset cache location
         cache_dir = os.path.join(self.dataset_root, ".cache", "huggingface")
         
         # Load dataset with custom cache location
