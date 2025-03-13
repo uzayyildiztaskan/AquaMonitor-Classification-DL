@@ -21,8 +21,6 @@ class TrainingManager:
         # Colab detection
         self.is_colab = self._detect_colab()
         if self.is_colab:
-            from google.colab import drive
-            drive.mount('/content/drive')
             self.drive_dir = '/content/drive/MyDrive/project_outputs'
             os.makedirs(self.drive_dir, exist_ok=True)
 
@@ -42,15 +40,15 @@ class TrainingManager:
             'val_metrics': self.val_metrics
         }
         
-        torch.save(checkpoint, os.path.join(self.output_dir, f'checkpoint_epoch_{epoch}.pth'))
+        torch.save(checkpoint, os.path.join(self.output_dir, f'checkpoint_epoch_{epoch}.pt'))
         
         if is_best:
-            torch.save(checkpoint, os.path.join(self.output_dir, 'best_model.pth'))
+            torch.save(checkpoint, os.path.join(self.output_dir, 'best_model.pt'))
         
         if self.is_colab:
-            torch.save(checkpoint, os.path.join(self.drive_dir, f'checkpoint_epoch_{epoch}.pth'))
+            torch.save(checkpoint, os.path.join(self.drive_dir, f'checkpoint_epoch_{epoch}.pt'))
             if is_best:
-                torch.save(checkpoint, os.path.join(self.drive_dir, 'best_model.pth'))
+                torch.save(checkpoint, os.path.join(self.drive_dir, 'best_model.pt'))
 
     def _train_epoch(self, train_loader):
         self.model.train()
