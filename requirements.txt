@@ -2,4 +2,8 @@ torch
 torchvision
 timm
 datasets
-matplotib
+pandas
+huggingface-hub
+scikit-learn
+matplotlib
+tqdm
