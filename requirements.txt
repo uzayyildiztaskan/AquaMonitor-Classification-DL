@@ -1,15 +1,18 @@
-# Core Requirements (CPU-only)
-torchvision
-torchvision
-timm
+# Core PyTorch with CUDA 12.1 and cuDNN 8.9.7
+torch==2.3.0+cu121
+torchvision==0.18.0+cu121
+--index-url https://download.pytorch.org/whl/cu121
 
-# Data Handling
-datasets
-pandas
-huggingface-hub
+# NumPy and AI ecosystem
+numpy==1.26.3
+timm==0.9.16
+
+# Data handling
+datasets==3.3.2
+pandas>=2.2.0
+huggingface-hub>=0.22.0
 
 # Utilities
-scikit-learn
-matplotlib
-tqdm
-ipython
+scikit-learn==1.6.1
+matplotlib==3.10.1
+tqdm==4.67.1

@@ -14,47 +14,46 @@ class TrainingManager:
         self.val_metrics = []
         self.best_f1 = 0
         self.output_dir = output_dir
+        self.current_phase = 1  # Track training phase
         
-        # Create output directory
         os.makedirs(self.output_dir, exist_ok=True)
-        
-        # Colab detection
         self.is_colab = self._detect_colab()
         if self.is_colab:
+            from google.colab import drive
+            drive.mount('/content/drive')
             self.drive_dir = '/content/drive/MyDrive/project_outputs'
             os.makedirs(self.drive_dir, exist_ok=True)
 
     def _detect_colab(self):
-        try:
-            import os
-            return 'COLAB_GPU' in os.environ
-        except:
-            return False
+        return 'COLAB_GPU' in os.environ if 'COLAB_GPU' in os.environ else False
 
     def _save_checkpoint(self, epoch, is_best=False):
         checkpoint = {
             'epoch': epoch,
+            'phase': self.current_phase,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'train_losses': self.train_losses,
             'val_metrics': self.val_metrics
         }
         
-        torch.save(checkpoint, os.path.join(self.output_dir, f'checkpoint_epoch_{epoch}.pt'))
+        # Save with phase information
+        filename = f'phase{self.current_phase}_checkpoint_epoch_{epoch}.pt'
+        torch.save(checkpoint, os.path.join(self.output_dir, filename))
         
         if is_best:
-            torch.save(checkpoint, os.path.join(self.output_dir, 'best_model.pt'))
+            torch.save(checkpoint, os.path.join(self.output_dir, f'phase{self.current_phase}_best_model.pt'))
         
         if self.is_colab:
-            torch.save(checkpoint, os.path.join(self.drive_dir, f'checkpoint_epoch_{epoch}.pt'))
+            torch.save(checkpoint, os.path.join(self.drive_dir, filename))
             if is_best:
-                torch.save(checkpoint, os.path.join(self.drive_dir, 'best_model.pt'))
+                torch.save(checkpoint, os.path.join(self.drive_dir, f'phase{self.current_phase}_best_model.pt'))
 
     def _train_epoch(self, train_loader):
         self.model.train()
         epoch_loss = 0
         
-        for batch in tqdm(train_loader, desc="Training"):
+        for batch in tqdm(train_loader, desc=f"Phase {self.current_phase} - Training"):
             images = batch["img"].to(self.device)
             labels = batch["label"].to(self.device)
             
@@ -68,23 +67,25 @@ class TrainingManager:
             
         return epoch_loss / len(train_loader)
 
-    def train(self, train_loader, val_loader, epochs=10):
+    def train_phase(self, train_loader, val_loader, epochs=10, phase=1):
+        self.current_phase = phase
+        print(f"\n=== Starting Phase {phase} Training ===")
+        
         for epoch in range(epochs):
             train_loss = self._train_epoch(train_loader)
             self.train_losses.append(train_loss)
             
-            val_preds, val_labels = self.model.validate(self.model, val_loader, self.device)
+            val_preds, val_labels = self._validate(val_loader)
             val_f1 = f1_score(val_labels, val_preds, average='weighted')
             self.val_metrics.append(val_f1)
-            
-            # Save best model
-            if val_f1 > self.best_f1:
+
+            is_best = val_f1 > self.best_f1
+            if is_best:
                 self.best_f1 = val_f1
-                self._save_checkpoint(epoch, is_best=True)
-            else:
-                self._save_checkpoint(epoch)
+                
+            self._save_checkpoint(epoch, is_best)
             
-            print(f"Epoch {epoch+1}/{epochs}")
+            print(f"Phase {phase} - Epoch {epoch+1}/{epochs}")
             print(f"Train Loss: {train_loss:.4f} | Val F1: {val_f1:.4f}")
             
             if self.is_colab:
@@ -93,26 +94,48 @@ class TrainingManager:
             
             self._plot_metrics()
         
-        self._save_checkpoint('final')
-        print(f"Training complete. Models saved to {self.output_dir}")
-        if self.is_colab:
-            print(f"Backup copies saved to Google Drive: {self.drive_dir}")
+        print(f"Phase {phase} complete. Best F1: {self.best_f1:.4f}")
+
+    def _validate(self, val_loader):
+        self.model.eval()
+        all_preds = []
+        all_labels = []
+        
+        with torch.no_grad():
+            for batch in val_loader:
+                images = batch["img"].to(self.device)
+                labels = batch["label"].to(self.device)
+                
+                outputs = self.model(images)
+                preds = torch.argmax(outputs, dim=1)
+                
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+                
+        return all_preds, all_labels
 
     def _plot_metrics(self):
         plt.figure(figsize=(12, 5))
         
         plt.subplot(1, 2, 1)
         plt.plot(self.train_losses, label='Train Loss')
-        plt.title("Training Loss")
+        plt.title(f"Phase {self.current_phase} - Training Loss")
         plt.xlabel("Epoch")
         plt.legend()
         
         plt.subplot(1, 2, 2)
         plt.plot(self.val_metrics, label='Validation F1')
-        plt.title("Validation Metrics")
+        plt.title(f"Phase {self.current_phase} - Validation Metrics")
         plt.xlabel("Epoch")
         plt.legend()
         
         plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, 'training_metrics.png'))
+        plt.savefig(os.path.join(self.output_dir, f'phase{self.current_phase}_metrics.png'))
         plt.close()
+
+    def update_optimizer(self, new_optimizer):
+        """Update optimizer for new phase"""
+        self.optimizer = new_optimizer
+        self.best_f1 = 0  # Reset best metric for new phase
+        self.train_losses = []
+        self.val_metrics = []
