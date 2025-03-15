@@ -31,7 +31,7 @@ def start_training(no_augmentation=False, layers_to_freeze=5):
     trainer = TrainingManager(model, optimizer_phase1, criterion, device, output_dir=output_dir)
     trainer.train_phase(train_loader, val_loader, epochs=2, phase=1)
 
-    model.unfreeze_last_layers(5)
+    model.unfreeze_last_layers(layers_to_freeze)
     optimizer_phase2 = optim.Adam(model.parameters(), lr=0.0001)
     trainer.update_optimizer(optimizer_phase2)
     trainer.train_phase(train_loader, val_loader, epochs=8, phase=2)
