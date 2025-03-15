@@ -21,8 +21,6 @@ class TrainingManager:
         os.makedirs(self.output_dir, exist_ok=True)
         self.is_colab = self._detect_colab()
         if self.is_colab:
-            from google.colab import drive
-            drive.mount('/content/drive')
             self.drive_dir = '/content/drive/MyDrive/project_outputs'
             os.makedirs(self.drive_dir, exist_ok=True)
 
@@ -124,7 +122,7 @@ class TrainingManager:
                 preds = torch.argmax(outputs, dim=1)
                 loss = self.criterion(outputs, labels)
                 val_loss += loss.item()
-                
+
                 all_preds.extend(preds.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
                 

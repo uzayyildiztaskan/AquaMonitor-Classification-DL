@@ -34,7 +34,7 @@ class DataHandler:
         self.class_map = {k: v for v, k in enumerate(classes)}
         self.label_dict = dict(zip(metadata["img"], metadata["taxon_group"].map(self.class_map)))
 
-    def get_transforms(self, augmentation_strength=0.5):
+    def get_transforms(self, augmentation_strength=0.0):
         train_transform = transforms.Compose([
             transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -52,7 +52,7 @@ class DataHandler:
             ),
             transforms.GaussianBlur(
                 kernel_size=(5, 9), 
-                sigma=(0.1, 5.0*augmentation_strength)
+                sigma=(0.1, max(0.1, 5.0*augmentation_strength))
             ),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
