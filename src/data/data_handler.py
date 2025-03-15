@@ -34,30 +34,63 @@ class DataHandler:
         self.class_map = {k: v for v, k in enumerate(classes)}
         self.label_dict = dict(zip(metadata["img"], metadata["taxon_group"].map(self.class_map)))
 
-    @staticmethod
-    def get_transforms():
-        return transforms.Compose([
-            transforms.Resize((224, 224)),
+    def get_transforms(self, augmentation_strength=0.5):
+        train_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.2),
+            transforms.ColorJitter(
+                brightness=0.3*augmentation_strength,
+                contrast=0.3*augmentation_strength,
+                saturation=0.3*augmentation_strength,
+                hue=0.1*augmentation_strength
+            ),
+            transforms.RandomRotation(30*augmentation_strength),
+            transforms.RandomPerspective(
+                distortion_scale=0.2*augmentation_strength, 
+                p=0.3*augmentation_strength
+            ),
+            transforms.GaussianBlur(
+                kernel_size=(5, 9), 
+                sigma=(0.1, 5.0*augmentation_strength)
+            ),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
-    def get_datasets(self):
+        val_transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        
+        return train_transform, val_transform
 
-         # Configure dataset cache location
+    def get_datasets(self):
+        train_transform, val_transform = self.get_transforms()
+
         cache_dir = os.path.join(self.dataset_root, ".cache", "huggingface")
         
-        # Load dataset with custom cache location
         ds = load_dataset(self.repo_id, cache_dir=cache_dir)
         
-        def preprocess(batch):
+        def train_preprocess(batch):
             return {
                 "key": batch["__key__"],
-                "img": [self.get_transforms()(x) for x in batch["jpg"]],
-                "label": torch.as_tensor([self.label_dict[x] for x in batch["__key__"]], dtype=torch.long)
+                "img": [train_transform(x) for x in batch["jpg"]],
+                "label": torch.as_tensor([self.label_dict[x] for x in batch["__key__"]], 
+                                      dtype=torch.long)
             }
-        
+            
+        def val_preprocess(batch):
+            return {
+                "key": batch["__key__"],
+                "img": [val_transform(x) for x in batch["jpg"]],
+                "label": torch.as_tensor([self.label_dict[x] for x in batch["__key__"]],
+                                      dtype=torch.long)
+            }
+
         return (
-            ds["train"].with_transform(preprocess),
-            ds["validation"].with_transform(preprocess)
+            ds["train"].with_transform(train_preprocess),
+            ds["validation"].with_transform(val_preprocess)
         )

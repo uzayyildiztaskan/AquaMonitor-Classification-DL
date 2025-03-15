@@ -29,10 +29,10 @@ def main():
     trainer = TrainingManager(model, optimizer_phase1, criterion, device)
     trainer.train_phase(train_loader, val_loader, epochs=2, phase=1)
 
-    model.unfreeze_last_layers(10)
+    model.unfreeze_last_layers(5)
     optimizer_phase2 = optim.Adam(model.parameters(), lr=0.0001)
     trainer.update_optimizer(optimizer_phase2)
-    trainer.train_phase(train_loader, val_loader, epochs=10, phase=2)
+    trainer.train_phase(train_loader, val_loader, epochs=8, phase=2)
 
 if __name__ == "__main__":
     main()
