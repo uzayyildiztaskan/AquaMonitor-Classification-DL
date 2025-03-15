@@ -36,50 +36,71 @@ class DataHandler:
         self.label_dict = dict(zip(metadata["img"], metadata["taxon_group"].map(self.class_map)))
 
     def get_transforms(self):
+
         augmentation_strength = self.augmentation_strength
 
+        # Enhanced parameters for underwater conditions
+        min_sigma = 0.1
+        max_sigma = max(0.1, 5.0 * augmentation_strength)
+        water_distortion_scale = 0.3 * augmentation_strength  # Increased from 0.2
+
         train_transform = transforms.Compose([
-            # PIL-based transforms
-            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
+            # Base geometric transforms
+            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),  # More aggressive cropping
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.3),
+
+            # Water-specific color distortions
             transforms.ColorJitter(
-                brightness=0.4 * augmentation_strength,
+                brightness=0.4 * augmentation_strength,  # Increased from 0.3
                 contrast=0.4 * augmentation_strength,
                 saturation=0.4 * augmentation_strength,
-                hue=0.15 * augmentation_strength
+                hue=0.15 * augmentation_strength  # Increased from 0.1
             ),
-            transforms.RandomRotation(180 * augmentation_strength),
+            
+            # Underwater motion effects
+            transforms.RandomRotation(180 * augmentation_strength),  # Full rotation possible
             transforms.RandomPerspective(
-                distortion_scale=0.3 * augmentation_strength,
-                p=0.5 * augmentation_strength
+                distortion_scale=water_distortion_scale,
+                p=0.5 * augmentation_strength  # Higher probability
             ),
-            # Move these PIL operations before ToTensor()
+            
+            # Depth-related light absorption
             transforms.RandomPosterize(
-                bits=int(8 - 4 * augmentation_strength),
+                bits=int(8 - 4 * augmentation_strength),  # Reduce color depth
                 p=0.5 * augmentation_strength
             ),
-            transforms.RandomAutocontrast(p=0.3 * augmentation_strength),
-            transforms.RandomGrayscale(p=0.2 * augmentation_strength),
             
-            # Convert to tensor
-            transforms.ToTensor(),
+            # Turbidity simulation
+            transforms.RandomAutocontrast(
+                p=0.3 * augmentation_strength
+            ),
             
-            # Tensor-based transforms
+            # Substrate reflection
+            transforms.RandomGrayscale(
+                p=0.2 * augmentation_strength  # Simulate silty conditions
+            ),
+
+            # Required preprocessing
+            transforms.ToTensor(),            
+            
+            # Water clarity simulation
             transforms.GaussianBlur(
-                kernel_size=5,
-                sigma=(0.1, 5.0 * augmentation_strength)
+                kernel_size=(5, 9), 
+                sigma=(min_sigma, max_sigma)
             ),
             transforms.RandomAdjustSharpness(
-                sharpness_factor=2.5 * augmentation_strength,
+                sharpness_factor=2.5 * augmentation_strength,  # Simulate focus variations
                 p=0.4 * augmentation_strength
             ),
+            
+            # Particulate matter simulation
             transforms.RandomErasing(
                 p=0.3 * augmentation_strength,
-                scale=(0.02, 0.15 * augmentation_strength),
-                ratio=(0.3, 3.3)
+                scale=(0.02, 0.15 * augmentation_strength),  # Streaks/bubbles
+                ratio=(0.3, 3.3)  # Vertical/horizontal artifacts
             ),
-            
+
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
