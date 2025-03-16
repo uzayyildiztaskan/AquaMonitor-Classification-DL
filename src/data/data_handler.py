@@ -4,6 +4,7 @@ from torchvision import transforms
 from datasets import load_dataset
 from huggingface_hub import hf_hub_download
 import torch
+import numpy as np
 
 class DataHandler:
     def __init__(self, repo_id="mikkoim/aquamonitor-jyu", dataset_root="./dataset"):
@@ -11,6 +12,7 @@ class DataHandler:
         self.dataset_root = dataset_root
         self.class_map = None
         self.label_dict = None
+        self.train_keys = None
         os.makedirs(self.dataset_root, exist_ok=True)
         self._load_metadata()
 
@@ -27,37 +29,71 @@ class DataHandler:
             )
             
         metadata = pd.read_parquet(parquet_path)
+
+        if 'split' not in metadata.columns:  # Backward compatibility
+            metadata['split'] = 'train'  # Default, update with actual splits
+
+        self.train_keys = set(metadata[metadata['split'] == 'train']['img'])
         
         # Process metadata
         metadata["img"] = metadata["img"].str.removesuffix(".jpg")
         classes = sorted(metadata["taxon_group"].unique())
         self.class_map = {k: v for v, k in enumerate(classes)}
         self.label_dict = dict(zip(metadata["img"], metadata["taxon_group"].map(self.class_map)))
+        self.train_keys = set(metadata[metadata['split'] == 'train']['img'])
 
-    def get_transforms(self, augmentation_strength=0.0):
+    def compute_class_weights(self):
+        # Get all labels from your metadata
+        labels = [v for k,v in self.label_dict.items() 
+                  if k in self._get_train_keys()] 
+        
+        # Count class occurrences
+        class_counts = np.bincount(labels)
+        
+        # Handle zero-count classes
+        class_counts = np.where(class_counts == 0, 1, class_counts)
+        
+        # Compute inverse frequency weights
+        weights = 1. / class_counts
+        
+        # Normalize weights
+        weights = weights / weights.sum()
+        
+        # Convert to tensor
+        return torch.tensor(weights, dtype=torch.float32)
+    
+    def _get_train_keys(self):
+        return self.train_keys
+
+    def get_transforms(self):
+    
         train_transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
+            # Keep geometrically plausible transforms
+            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),  # Less aggressive cropping
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.2),
+            
+            # Water-specific adjustments
             transforms.ColorJitter(
-                brightness=0.3*augmentation_strength,
-                contrast=0.3*augmentation_strength,
-                saturation=0.3*augmentation_strength,
-                hue=0.1*augmentation_strength
+                brightness=0.3,  # Reduced from 0.4
+                contrast=0.3,
+                saturation=0.3,
+                hue=0.1
             ),
-            transforms.RandomRotation(30*augmentation_strength),
-            transforms.RandomPerspective(
-                distortion_scale=0.2*augmentation_strength, 
-                p=0.3*augmentation_strength
-            ),
-            transforms.GaussianBlur(
-                kernel_size=(5, 9), 
-                sigma=(0.1, max(0.1, 5.0*augmentation_strength))
-            ),
+            transforms.RandomRotation(15),  # From 180° to 30°
+            
+            # Remove unrealistic transforms
+            # Remove RandomPerspective and RandomPosterize
+            
             transforms.ToTensor(),
+            
+            # Keep useful texture transforms
+            transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
+            transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.3),
+            
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
+        # Validation transforms (unchanged)
         val_transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),

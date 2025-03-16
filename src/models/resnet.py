@@ -2,7 +2,7 @@ from torchvision.models import resnet50
 import torch.nn as nn
 
 class ResNet(nn.Module):
-    def __init__(self, num_classes=31):
+    def __init__(self, num_classes=31, class_weights=None):
         super().__init__()
         self.base_model = resnet50(pretrained=True)
         
@@ -10,23 +10,39 @@ class ResNet(nn.Module):
             param.requires_grad = False
             
         in_features = self.base_model.fc.in_features
-        self.base_model.fc = nn.Linear(in_features, num_classes)
+        self.base_model.fc = nn.Sequential(
+            nn.Dropout(0.6),
+            nn.Linear(in_features, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_classes)
+        )
         
         for param in self.base_model.fc.parameters():
             param.requires_grad = True
 
-    def unfreeze_last_layers(self, num_layers=10):
+        self.weight_decay = 1e-4
 
-        children = list(self.base_model.children())[:-1]
+        self.class_weights = class_weights
+
+
+    def unfreeze_last_layers(self, num_layers=10):
+        # Get all layers except the final FC layer
+        layers = []
+        for name, child in self.base_model.named_children():
+            if name != 'fc':
+                layers.append(child)
         
-        reversed_children = reversed(children)
+        # Reverse to start from last layers first
+        reversed_layers = reversed(layers)
         
+        # Unfreeze parameters until we reach the desired count
         unfrozen = 0
-        
-        for child in reversed_children:
+        for layer in reversed_layers:
             if unfrozen >= num_layers:
                 break
-            for param in child.parameters():
+            for param in layer.parameters():
                 param.requires_grad = True
                 unfrozen += 1
                 if unfrozen >= num_layers:
