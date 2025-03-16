@@ -61,14 +61,13 @@ def start_training(no_augmentation=False):
             factor=0.5
         )
         
-        trainer.update_optimizer(optimizer_phase2)
+        trainer.update_optimizer(optimizer_phase2, new_scheduler=scheduler_phase2)
         trainer.train_phase(
             train_loader, 
             val_loader, 
             epochs=epochs, 
             phase=2,
             stage=stage_idx,
-            scheduler=scheduler_phase2
         )
 
 def main():

@@ -185,9 +185,9 @@ class TrainingManager:
                                f'training_metrics_p{self.current_phase}s{self.current_stage}.png'))
         plt.close()
 
-    def update_optimizer(self, new_optimizer):
+    def update_optimizer(self, new_optimizer, new_scheduler):
         """Update optimizer for new phase/stage"""
         self.optimizer = new_optimizer
         self.best_f1 = 0  # Reset best metric for new stage
-        if self.scheduler:
-            self.scheduler = None
+        if new_scheduler:
+            self.scheduler = new_scheduler
