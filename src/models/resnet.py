@@ -28,16 +28,13 @@ class ResNet(nn.Module):
 
 
     def unfreeze_last_layers(self, num_layers=10):
-        # Get all layers except the final FC layer
         layers = []
         for name, child in self.base_model.named_children():
             if name != 'fc':
                 layers.append(child)
         
-        # Reverse to start from last layers first
         reversed_layers = reversed(layers)
         
-        # Unfreeze parameters until we reach the desired count
         unfrozen = 0
         for layer in reversed_layers:
             if unfrozen >= num_layers:
