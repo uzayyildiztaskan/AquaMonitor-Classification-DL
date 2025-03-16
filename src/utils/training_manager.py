@@ -12,7 +12,6 @@ class TrainingManager:
         self.criterion = criterion
         self.device = device
         
-        # Initialize all tracking lists
         self.train_losses = []
         self.val_losses = []
         self.train_accuracies = []
@@ -117,30 +116,26 @@ class TrainingManager:
         print(f"\n=== Phase {phase} Stage {stage} Training ===")
         
         for epoch in range(epochs):
-            # Training
+
             train_loss, train_acc, train_f1 = self._train_epoch(train_loader)
             self.train_losses.append(train_loss)
             self.train_accuracies.append(train_acc)
             self.train_f1s.append(train_f1)
             
-            # Validation
             val_loss, val_acc, val_f1 = self._validate(val_loader)
             self.val_losses.append(val_loss)
             self.val_accuracies.append(val_acc)
             self.val_f1s.append(val_f1)
 
-            # Update scheduler
             if self.scheduler and phase == 1:
                 self.scheduler.step(val_f1)
 
-            # Check for best F1
             is_best = val_f1 > self.best_f1
             if is_best:
                 self.best_f1 = val_f1
                 
             self._save_checkpoint(epoch, is_best)
             
-            # Print metrics
             print(f"[Phase {phase}.{stage}] Epoch {epoch+1}/{epochs}")
             print(f"Train Loss: {train_loss:.4f} | Acc: {train_acc:.1f}% | F1: {train_f1:.4f}")
             print(f"Val Loss: {val_loss:.4f} | Acc: {val_acc:.1f}% | F1: {val_f1:.4f}")
@@ -156,7 +151,6 @@ class TrainingManager:
     def _plot_metrics(self):
         plt.figure(figsize=(15, 12))
         
-        # Loss plot
         plt.subplot(3, 1, 1)
         plt.plot(self.train_losses, label='Train Loss')
         plt.plot(self.val_losses, label='Val Loss')
@@ -164,7 +158,6 @@ class TrainingManager:
         plt.xlabel('Epoch')
         plt.legend()
         
-        # Accuracy plot
         plt.subplot(3, 1, 2)
         plt.plot(self.train_accuracies, label='Train Acc')
         plt.plot(self.val_accuracies, label='Val Acc')
@@ -172,7 +165,6 @@ class TrainingManager:
         plt.xlabel('Epoch')
         plt.legend()
         
-        # F1 Score plot
         plt.subplot(3, 1, 3)
         plt.plot(self.train_f1s, label='Train F1')
         plt.plot(self.val_f1s, label='Val F1')
@@ -188,6 +180,6 @@ class TrainingManager:
     def update_optimizer(self, new_optimizer, new_scheduler):
         """Update optimizer for new phase/stage"""
         self.optimizer = new_optimizer
-        self.best_f1 = 0  # Reset best metric for new stage
+        self.best_f1 = 0 
         if new_scheduler:
             self.scheduler = new_scheduler

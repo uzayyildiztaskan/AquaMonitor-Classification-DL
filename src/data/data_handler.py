@@ -17,7 +17,6 @@ class DataHandler:
         self._load_metadata()
 
     def _load_metadata(self):
-        # Download metadata file
         parquet_path = os.path.join(self.dataset_root, "aquamonitor-jyu.parquet.gzip")
         
         if not os.path.exists(parquet_path):
@@ -30,12 +29,11 @@ class DataHandler:
             
         metadata = pd.read_parquet(parquet_path)
 
-        if 'split' not in metadata.columns:  # Backward compatibility
-            metadata['split'] = 'train'  # Default, update with actual splits
+        if 'split' not in metadata.columns:
+            metadata['split'] = 'train'
 
         self.train_keys = set(metadata[metadata['split'] == 'train']['img'])
         
-        # Process metadata
         metadata["img"] = metadata["img"].str.removesuffix(".jpg")
         classes = sorted(metadata["taxon_group"].unique())
         self.class_map = {k: v for v, k in enumerate(classes)}
@@ -43,23 +41,17 @@ class DataHandler:
         self.train_keys = set(metadata[metadata['split'] == 'train']['img'])
 
     def compute_class_weights(self):
-        # Get all labels from your metadata
         labels = [v for k,v in self.label_dict.items() 
                   if k in self._get_train_keys()] 
         
-        # Count class occurrences
         class_counts = np.bincount(labels)
         
-        # Handle zero-count classes
         class_counts = np.where(class_counts == 0, 1, class_counts)
         
-        # Compute inverse frequency weights
         weights = 1. / class_counts
         
-        # Normalize weights
         weights = weights / weights.sum()
         
-        # Convert to tensor
         return torch.tensor(weights, dtype=torch.float32)
     
     def _get_train_keys(self):
@@ -68,32 +60,26 @@ class DataHandler:
     def get_transforms(self):
     
         train_transform = transforms.Compose([
-            # Keep geometrically plausible transforms
-            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),  # Less aggressive cropping
+            
+            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
             transforms.RandomHorizontalFlip(p=0.5),
             
-            # Water-specific adjustments
             transforms.ColorJitter(
-                brightness=0.3,  # Reduced from 0.4
+                brightness=0.3,
                 contrast=0.3,
                 saturation=0.3,
                 hue=0.1
             ),
-            transforms.RandomRotation(15),  # From 180° to 30°
-            
-            # Remove unrealistic transforms
-            # Remove RandomPerspective and RandomPosterize
+            transforms.RandomRotation(15),
             
             transforms.ToTensor(),
             
-            # Keep useful texture transforms
             transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
             transforms.RandomAdjustSharpness(sharpness_factor=1.5, p=0.3),
             
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
-        # Validation transforms (unchanged)
         val_transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),

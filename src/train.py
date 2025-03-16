@@ -2,7 +2,7 @@ import torch
 import os
 from data.data_handler import DataHandler
 from models.resnet import ResNet
-from models.convnext import ConvNeXt
+from models.model import ConvNeXt
 from utils.training_manager import TrainingManager
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -118,7 +118,6 @@ def start_convnext_training():
     )
     trainer.train_phase(train_loader, val_loader, epochs=total_phase1_epochs, phase=1)
 
-    # ConvNeXt-specific unfreezing strategy
     unfreeze_stages = [(5,4), (10,3), (15,2)]
     
     for stage_idx, (layers, epochs) in enumerate(unfreeze_stages, start=1):
@@ -151,7 +150,6 @@ def main():
     print(f"CUDA version: {torch.version.cuda}")
     print(f"cuDNN version: {torch.backends.cudnn.version()}")
 
-    # Train both models
     print("\n=== Training ResNet ===")
     start_resnet_training()
     
