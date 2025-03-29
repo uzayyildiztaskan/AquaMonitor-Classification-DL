@@ -33,7 +33,7 @@ drive.mount('/content/drive')
 !pip install timm datasets pandas huggingface-hub matplotlib tqdm
 
 # Clone the repository (GPU_machine branch)
-!git clone -b GPU_machine https://github.com/uzayyildiztaskan/AquaMonitor-Classification-DL.git
+!git clone https://github.com/uzayyildiztaskan/AquaMonitor-Classification-DL
 %cd AquaMonitor-Classification-DL
 
 # Prepare dataset cache folder
